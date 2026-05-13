@@ -1,6 +1,12 @@
 # Global Insights Visualization Dashboard
 
-Production-style analytics dashboard for the assignment `jsondata.json` dataset. The app uses Next.js App Router, TypeScript, Tailwind CSS, shadcn-style primitives, TanStack Query, Zustand, Recharts, Framer Motion, and Supabase PostgreSQL.
+A distinctive, production-grade analytics dashboard that transforms the assignment `jsondata.json` dataset into an unforgettable visual experience. Built with Next.js App Router, TypeScript, Tailwind CSS, shadcn-style primitives, TanStack Query, Zustand, Recharts, Framer Motion, and Supabase PostgreSQL.
+
+## Design Philosophy
+
+This interface embraces a **brutalist/raw aesthetic** with industrial utilitarian undertones - think exposed data structures, raw geometric forms, and unapologetic data density. The design rejects cookie-cutter dashboards, opting instead for asymmetrical compositions, overlapping elements, and dramatic shadows that create depth and tension. Typography pairs a distinctive condensed sans-serif display font (Space Grotesk) with a refined monospace body font (JetBrains Mono), while a monochromatic palette of charcoal blacks, electric blues, and burnt oranges delivers sharp visual impact. Motion is deliberate and surprising - staggered reveals on load, scroll-triggered transforms, and hover states that reveal hidden layers. Every detail serves the narrative of raw data power, making this dashboard not just functional, but memorably brutalist.
+
+## Features
 
 ## Features
 
