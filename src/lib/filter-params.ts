@@ -25,6 +25,30 @@ export const scalarFilterKeys = [
   "q",
 ] as const
 
+const sortableInsightFields = new Set<keyof Insight>([
+  "id",
+  "end_year",
+  "intensity",
+  "sector",
+  "topic",
+  "insight",
+  "url",
+  "region",
+  "start_year",
+  "impact",
+  "added",
+  "published",
+  "country",
+  "relevance",
+  "pestle",
+  "source",
+  "title",
+  "likelihood",
+  "city",
+  "swot",
+  "created_at",
+])
+
 export function parseFilters(searchParams: URLSearchParams): DashboardFilters {
   const filters: DashboardFilters = { ...defaultFilters }
 
@@ -48,7 +72,7 @@ export function parseFilters(searchParams: URLSearchParams): DashboardFilters {
   filters.pageSize = Number.isFinite(pageSize)
     ? Math.min(Math.max(pageSize, 1), 100)
     : defaultFilters.pageSize
-  if (sortBy) filters.sortBy = sortBy
+  if (sortBy && sortableInsightFields.has(sortBy)) filters.sortBy = sortBy
   if (sortDir === "asc" || sortDir === "desc") filters.sortDir = sortDir
 
   return filters

@@ -53,7 +53,7 @@ import { cn } from "@/lib/utils"
 import { useDashboardData } from "@/src/hooks/useInsights"
 import { filtersToSearchParams, parseFilters } from "@/src/lib/filter-params"
 import { useFiltersStore } from "@/src/store/filters"
-import type { FilterKey, NamedMetric, StatsResponse } from "@/src/types"
+import type { DashboardFilters, DashboardInitialData, FilterKey, NamedMetric, StatsResponse } from "@/src/types"
 import { toQueryString } from "@/src/services/api"
 
 const chartColors = ["#38bdf8", "#34d399", "#f59e0b", "#f472b6", "#a78bfa", "#f87171"]
@@ -70,7 +70,17 @@ const filterLabels: Array<{ key: FilterKey; label: string }> = [
   { key: "city", label: "City" },
 ]
 
-export function Dashboard() {
+export function Dashboard({
+  initialData,
+  initialFilters,
+}: {
+  initialData?: DashboardInitialData
+  initialFilters?: DashboardFilters
+}) {
+  useState(() => {
+    if (initialFilters) useFiltersStore.setState((state) => ({ ...state, ...initialFilters }))
+    return true
+  })
   const router = useRouter()
   const searchParams = useSearchParams()
   const store = useFiltersStore(
@@ -103,20 +113,31 @@ export function Dashboard() {
     }))
   )
   const setScalarFilter = useFiltersStore((state) => state.setScalarFilter)
-  const data = useDashboardData()
+  const data = useDashboardData(initialData)
   const hasHydrated = useRef(false)
-  const [theme, setTheme] = useState(() => {
-    if (typeof window === "undefined") return "dark"
-    return window.localStorage.getItem("theme") || "dark"
-  })
+  const [theme, setTheme] = useState<"dark" | "light">("dark")
   const [searchDraft, setSearchDraft] = useState(store.q || "")
 
   useEffect(() => {
     if (hasHydrated.current) return
     hasHydrated.current = true
     store.hydrate(parseFilters(searchParams))
+  }, [searchParams, store])
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      const storedTheme = window.localStorage.getItem("theme")
+      if (storedTheme === "dark" || storedTheme === "light") {
+        setTheme(storedTheme)
+      }
+    }, 0)
+
+    return () => window.clearTimeout(timer)
+  }, [])
+
+  useEffect(() => {
     document.documentElement.classList.toggle("dark", theme === "dark")
-  }, [searchParams, store, theme])
+  }, [theme])
 
   useEffect(() => {
     const next = filtersToSearchParams(data.filters).toString()
@@ -135,7 +156,6 @@ export function Dashboard() {
     const next = theme === "dark" ? "light" : "dark"
     setTheme(next)
     window.localStorage.setItem("theme", next)
-    document.documentElement.classList.toggle("dark", next === "dark")
   }
 
   const anyError = [
@@ -146,17 +166,18 @@ export function Dashboard() {
     data.topics.error,
     data.regions.error,
     data.timeline.error,
+    data.sources.error,
+    data.pestle.error,
+    data.countries.error,
+    data.sectors.error,
+    data.scatter.error,
   ].find(Boolean)
 
   const filterOptions = data.filterOptions.data
   const insights = data.insights.data
   const stats = data.stats.data
 
-  const isLoading =
-    data.insights.isLoading ||
-    data.stats.isLoading ||
-    data.filterOptions.isLoading ||
-    data.intensity.isLoading
+  const statsLoading = data.stats.isLoading && !stats
 
   const activeFilterCount = useMemo(() => {
     return filterLabels.reduce((count, item) => count + store[item.key].length, 0)
@@ -301,7 +322,7 @@ export function Dashboard() {
             </Card>
           ) : null}
 
-          <KpiGrid stats={stats} loading={isLoading} />
+          <KpiGrid stats={stats} loading={statsLoading} />
 
           <div className="mt-4 grid gap-4 xl:grid-cols-12">
             <ChartCard className="xl:col-span-7" title="Intensity by Sector" description="Average intensity, sorted by record volume">
@@ -380,7 +401,7 @@ export function Dashboard() {
           </div>
 
           <InsightsTable
-            loading={data.insights.isLoading}
+            loading={data.insights.isLoading && !insights}
             rows={insights?.data || []}
             total={insights?.total || 0}
             page={store.page}

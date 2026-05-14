@@ -106,3 +106,28 @@ export interface TimelinePoint {
   likelihood: number | null;
   relevance: number | null;
 }
+
+export interface ScatterPoint {
+  id: number;
+  title: string;
+  relevance: number;
+  likelihood: number;
+  intensity: number;
+  region: string;
+  sector: string;
+}
+
+export interface DashboardInitialData {
+  insights: InsightsResponse;
+  stats: StatsResponse;
+  filterOptions: FilterOptionsResponse;
+  intensity: NamedMetric[];
+  topics: NamedMetric[];
+  regions: NamedMetric[];
+  timeline: TimelinePoint[];
+  sources: NamedMetric[];
+  pestle: NamedMetric[];
+  countries: NamedMetric[];
+  sectors: NamedMetric[];
+  scatter: ScatterPoint[];
+}

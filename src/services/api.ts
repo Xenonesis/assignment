@@ -3,6 +3,7 @@ import type {
   FilterOptionsResponse,
   InsightsResponse,
   NamedMetric,
+  ScatterPoint,
   StatsResponse,
   TimelinePoint,
 } from "@/src/types"
@@ -37,17 +38,7 @@ export async function fetchTimeline(filters: DashboardFilters): Promise<Timeline
 }
 
 export async function fetchScatter(filters: DashboardFilters) {
-  return fetchJson<
-    Array<{
-      id: number
-      title: string
-      relevance: number
-      likelihood: number
-      intensity: number
-      region: string
-      sector: string
-    }>
-  >(`/api/charts/scatter${toQueryString(filters)}`)
+  return fetchJson<ScatterPoint[]>(`/api/charts/scatter${toQueryString(filters)}`)
 }
 
 export async function fetchJson<T>(url: string): Promise<T> {
