@@ -85,10 +85,13 @@ export function Dashboard({
   initialData?: DashboardInitialData
   initialFilters?: DashboardFilters
 }) {
-  useState(() => {
-    if (initialFilters) useFiltersStore.setState((state) => ({ ...state, ...initialFilters }))
-    return true
-  })
+  const didInitFilters = useRef(false)
+  useEffect(() => {
+    if (!didInitFilters.current && initialFilters) {
+      useFiltersStore.setState((state) => ({ ...state, ...initialFilters }))
+      didInitFilters.current = true
+    }
+  }, [initialFilters])
   const router = useRouter()
   const searchParams = useSearchParams()
   const store = useFiltersStore(
@@ -575,15 +578,18 @@ function RegionHeatmap({ rows }: { rows: NamedMetric[] }) {
     <div className="grid gap-2 sm:grid-cols-2">
       {rows.slice(0, 12).map((row) => {
         const strength = ((row.avgIntensity || 0) / max) * 0.75 + 0.12
+        const isLight = strength < 0.55
         return (
           <button
             type="button"
             key={row.name}
-            className="rounded-lg border border-border p-3 text-left transition hover:border-primary"
+            className={`rounded-lg border border-border p-3 text-left transition hover:border-primary ${
+              isLight ? "text-slate-900" : "text-white"
+            }`}
             style={{ backgroundColor: `rgb(56 189 248 / ${strength})` }}
           >
-            <p className="truncate text-sm font-medium">{row.name}</p>
-            <p className="mt-2 text-xs text-muted-foreground">
+            <p className="truncate text-sm font-semibold">{row.name}</p>
+            <p className={`mt-2 text-xs ${isLight ? "text-slate-700" : "text-white/80"}`}>
               {row.count} records · {row.avgIntensity ?? 0} intensity · {row.avgRelevance ?? 0} relevance
             </p>
           </button>
