@@ -29,6 +29,7 @@ import {
   Database,
   Download,
   Globe2,
+  Monitor,
   Moon,
   RefreshCcw,
   Search,
@@ -56,7 +57,7 @@ import { useFiltersStore } from "@/src/store/filters"
 import type { DashboardFilters, DashboardInitialData, FilterKey, NamedMetric, StatsResponse } from "@/src/types"
 import { toQueryString } from "@/src/services/api"
 
-const chartColors = ["#38bdf8", "#34d399", "#f59e0b", "#f472b6", "#a78bfa", "#f87171"]
+const chartColors = ["#8b5cf6", "#ec4899", "#14b8a6", "#f59e0b", "#3b82f6", "#ef4444"]
 
 const filterLabels: Array<{ key: FilterKey; label: string }> = [
   { key: "end_year", label: "End Year" },
@@ -115,7 +116,7 @@ export function Dashboard({
   const setScalarFilter = useFiltersStore((state) => state.setScalarFilter)
   const data = useDashboardData(initialData)
   const hasHydrated = useRef(false)
-  const [theme, setTheme] = useState<"dark" | "light">("dark")
+  const [theme, setTheme] = useState<"dark" | "light" | "system">("system")
   const [searchDraft, setSearchDraft] = useState(store.q || "")
 
   useEffect(() => {
@@ -127,7 +128,7 @@ export function Dashboard({
   useEffect(() => {
     const timer = window.setTimeout(() => {
       const storedTheme = window.localStorage.getItem("theme")
-      if (storedTheme === "dark" || storedTheme === "light") {
+      if (storedTheme === "dark" || storedTheme === "light" || storedTheme === "system") {
         setTheme(storedTheme)
       }
     }, 0)
@@ -136,7 +137,14 @@ export function Dashboard({
   }, [])
 
   useEffect(() => {
-    document.documentElement.classList.toggle("dark", theme === "dark")
+    const mq = window.matchMedia("(prefers-color-scheme: dark)")
+    const apply = (dark: boolean) => document.documentElement.classList.toggle("dark", dark)
+    if (theme === "system") {
+      apply(mq.matches)
+      mq.addEventListener("change", (e) => apply(e.matches))
+      return () => mq.removeEventListener("change", (e) => apply(e.matches))
+    }
+    apply(theme === "dark")
   }, [theme])
 
   useEffect(() => {
@@ -153,7 +161,8 @@ export function Dashboard({
   }, [searchDraft, setScalarFilter])
 
   function toggleTheme() {
-    const next = theme === "dark" ? "light" : "dark"
+    const order: Array<"light" | "dark" | "system"> = ["light", "dark", "system"]
+    const next = order[(order.indexOf(theme) + 1) % order.length]
     setTheme(next)
     window.localStorage.setItem("theme", next)
   }
@@ -186,14 +195,14 @@ export function Dashboard({
   return (
     <main className="min-h-screen bg-background text-foreground">
       <div className="flex min-h-screen flex-col lg:flex-row">
-        <aside className="border-b border-border bg-sidebar/80 p-4 backdrop-blur lg:sticky lg:top-0 lg:h-screen lg:w-80 lg:overflow-y-auto lg:border-b-0 lg:border-r">
-          <div className="mb-5 flex items-center justify-between">
-            <div>
-              <p className="text-xs uppercase tracking-widest text-muted-foreground">Global</p>
-              <h1 className="text-xl font-semibold">Insights Dashboard</h1>
+        <aside className="border-b border-border bg-sidebar/80 p-6 backdrop-blur-xl lg:sticky lg:top-0 lg:h-screen lg:w-80 lg:overflow-y-auto lg:border-b-0 lg:border-r lg:shadow-xl z-10 transition-all duration-300">
+          <div className="mb-8 flex items-center justify-between">
+            <div className="flex flex-col gap-1">
+              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary/80">Global Analytics</p>
+              <h1 className="text-2xl font-bold tracking-tight bg-gradient-to-br from-foreground to-foreground/70 bg-clip-text text-transparent">Insights<br/>Dashboard</h1>
             </div>
             <Button variant="ghost" size="icon" aria-label="Toggle theme" onClick={toggleTheme}>
-              {theme === "dark" ? <Sun /> : <Moon />}
+              {theme === "dark" ? <Sun /> : theme === "light" ? <Moon /> : <Monitor />}
             </Button>
           </div>
 
@@ -276,11 +285,12 @@ export function Dashboard({
           </Button>
         </aside>
 
-        <section className="flex-1 p-4 sm:p-6">
-          <header className="mb-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <section className="flex-1 p-4 sm:p-8 lg:p-10 relative">
+          <div className="absolute inset-0 pointer-events-none mix-blend-overlay"></div>
+          <header className="mb-8 flex flex-col gap-4 md:flex-row md:items-end md:justify-between relative z-10">
             <div>
-              <h2 className="text-2xl font-semibold tracking-tight">Market signals and trends</h2>
-              <p className="text-sm text-muted-foreground">
+              <h2 className="text-3xl font-bold tracking-tighter">Market signals and trends</h2>
+              <p className="mt-1 text-sm text-muted-foreground/80 font-medium">
                 Interactive analytics from the Supabase insights dataset.
               </p>
             </div>

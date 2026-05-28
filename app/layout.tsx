@@ -1,6 +1,19 @@
 import type { Metadata } from "next";
+import { Space_Grotesk, JetBrains_Mono } from 'next/font/google';
 import "./globals.css";
 import Providers from "./providers";
+
+const spaceGrotesk = Space_Grotesk({ 
+  subsets: ['latin'],
+  variable: '--font-space',
+  display: 'swap'
+});
+
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ['latin'],
+  variable: '--font-mono',
+  display: 'swap'
+});
 
 export const metadata: Metadata = {
   title: "Global Insights Dashboard",
@@ -13,8 +26,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="h-full antialiased">
-      <body className="min-h-full flex flex-col">
+    <html lang="en" className={`h-full antialiased ${spaceGrotesk.variable} ${jetbrainsMono.variable}`}>
+      <body className="min-h-full flex flex-col font-sans bg-[url('/noise.png')]">
         <Providers>{children}</Providers>
       </body>
     </html>
