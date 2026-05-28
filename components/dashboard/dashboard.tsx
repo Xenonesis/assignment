@@ -1,7 +1,7 @@
 "use client"
 
 import type { ReactNode } from "react"
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { motion } from "framer-motion"
 import { useShallow } from "zustand/react/shallow"
@@ -26,6 +26,8 @@ import {
 import {
   Activity,
   BarChart3,
+  ChevronLeft,
+  ChevronRight,
   Database,
   Download,
   Globe2,
@@ -33,9 +35,12 @@ import {
   Moon,
   RefreshCcw,
   Search,
+  Settings2,
   Share2,
   SlidersHorizontal,
   Sun,
+  Wifi,
+  WifiOff,
 } from "lucide-react"
 
 import { MultiSelectFilter } from "@/components/dashboard/multi-select-filter"
@@ -54,8 +59,10 @@ import { cn } from "@/lib/utils"
 import { useDashboardData } from "@/src/hooks/useInsights"
 import { filtersToSearchParams, parseFilters } from "@/src/lib/filter-params"
 import { useFiltersStore } from "@/src/store/filters"
+import { usePreferencesStore } from "@/src/store/preferences"
 import type { DashboardFilters, DashboardInitialData, FilterKey, NamedMetric, StatsResponse } from "@/src/types"
 import { toQueryString } from "@/src/services/api"
+import { useRealtimeState } from "@/app/providers"
 
 const chartColors = ["#8b5cf6", "#ec4899", "#14b8a6", "#f59e0b", "#3b82f6", "#ef4444"]
 
@@ -116,25 +123,24 @@ export function Dashboard({
   const setScalarFilter = useFiltersStore((state) => state.setScalarFilter)
   const data = useDashboardData(initialData)
   const hasHydrated = useRef(false)
-  const [theme, setTheme] = useState<"dark" | "light" | "system">("system")
   const [searchDraft, setSearchDraft] = useState(store.q || "")
+  const [settingsOpen, setSettingsOpen] = useState(false)
+
+  const theme = usePreferencesStore((s) => s.theme)
+  const setTheme = usePreferencesStore((s) => s.setTheme)
+  const layout = usePreferencesStore((s) => s.layout)
+  const setLayout = usePreferencesStore((s) => s.setLayout)
+  const display = usePreferencesStore((s) => s.display)
+  const setDisplay = usePreferencesStore((s) => s.setDisplay)
+  const realtime = usePreferencesStore((s) => s.realtime)
+  const setRealtime = usePreferencesStore((s) => s.setRealtime)
+  const { connectionState } = useRealtimeState()
 
   useEffect(() => {
     if (hasHydrated.current) return
     hasHydrated.current = true
     store.hydrate(parseFilters(searchParams))
   }, [searchParams, store])
-
-  useEffect(() => {
-    const timer = window.setTimeout(() => {
-      const storedTheme = window.localStorage.getItem("theme")
-      if (storedTheme === "dark" || storedTheme === "light" || storedTheme === "system") {
-        setTheme(storedTheme)
-      }
-    }, 0)
-
-    return () => window.clearTimeout(timer)
-  }, [])
 
   useEffect(() => {
     const mq = window.matchMedia("(prefers-color-scheme: dark)")
@@ -160,12 +166,18 @@ export function Dashboard({
     return () => window.clearTimeout(timer)
   }, [searchDraft, setScalarFilter])
 
-  function toggleTheme() {
+  const toggleTheme = useCallback(() => {
     const order: Array<"light" | "dark" | "system"> = ["light", "dark", "system"]
     const next = order[(order.indexOf(theme) + 1) % order.length]
     setTheme(next)
-    window.localStorage.setItem("theme", next)
-  }
+  }, [theme, setTheme])
+
+  const syncPageSize = useCallback(() => {
+    if (display.pageSize !== store.pageSize) {
+      store.setPage(1)
+      useFiltersStore.setState({ pageSize: display.pageSize })
+    }
+  }, [display.pageSize, store])
 
   const anyError = [
     data.insights.error,
@@ -195,15 +207,44 @@ export function Dashboard({
   return (
     <main className="min-h-screen bg-background text-foreground">
       <div className="flex min-h-screen flex-col lg:flex-row">
-        <aside className="border-b border-border bg-sidebar/80 p-6 backdrop-blur-xl lg:sticky lg:top-0 lg:h-screen lg:w-80 lg:overflow-y-auto lg:border-b-0 lg:border-r lg:shadow-xl z-10 transition-all duration-300">
+        {layout.sidebarCollapsed ? (
+          <aside className="border-b border-border bg-sidebar/80 p-3 backdrop-blur-xl lg:sticky lg:top-0 lg:h-screen lg:w-14 lg:overflow-y-auto lg:border-b-0 lg:border-r lg:shadow-xl z-10 transition-all duration-300">
+            <div className="flex flex-col items-center gap-3">
+              <Button variant="ghost" size="icon" onClick={() => setLayout({ sidebarCollapsed: false })} aria-label="Expand sidebar">
+                <ChevronRight className="size-4" />
+              </Button>
+              <Button variant="ghost" size="icon" aria-label="Toggle theme" onClick={toggleTheme}>
+                {theme === "dark" ? <Sun /> : theme === "light" ? <Moon /> : <Monitor />}
+              </Button>
+              <Button variant="ghost" size="icon" onClick={() => setSettingsOpen(!settingsOpen)} aria-label="Settings">
+                <Settings2 className="size-4" />
+              </Button>
+              <div className="size-2 rounded-full" title={`Realtime: ${connectionState}`} style={{ backgroundColor: connectionState === "connected" ? "#22c55e" : connectionState === "connecting" ? "#eab308" : "#ef4444" }} />
+            </div>
+          </aside>
+        ) : (
+        <aside className="border-b border-border bg-sidebar/80 p-6 backdrop-blur-xl lg:sticky lg:top-0 lg:h-screen lg:overflow-y-auto lg:border-b-0 lg:border-r lg:shadow-xl z-10 transition-all duration-300" style={{ width: layout.sidebarWidth }}>
           <div className="mb-8 flex items-center justify-between">
             <div className="flex flex-col gap-1">
               <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary/80">Global Analytics</p>
               <h1 className="text-2xl font-bold tracking-tight bg-gradient-to-br from-foreground to-foreground/70 bg-clip-text text-transparent">Insights<br/>Dashboard</h1>
             </div>
-            <Button variant="ghost" size="icon" aria-label="Toggle theme" onClick={toggleTheme}>
-              {theme === "dark" ? <Sun /> : theme === "light" ? <Moon /> : <Monitor />}
-            </Button>
+            <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1.5 mr-2" title={`Realtime: ${connectionState}`}>
+                {connectionState === "connected" ? (
+                  <Wifi className="size-3.5 text-green-500" />
+                ) : (
+                  <WifiOff className="size-3.5 text-muted-foreground" />
+                )}
+                <span className="text-[10px] text-muted-foreground">{connectionState === "connected" ? "Live" : "Off"}</span>
+              </div>
+              <Button variant="ghost" size="icon" aria-label="Toggle theme" onClick={toggleTheme}>
+                {theme === "dark" ? <Sun /> : theme === "light" ? <Moon /> : <Monitor />}
+              </Button>
+              <Button variant="ghost" size="icon" onClick={() => setLayout({ sidebarCollapsed: true })} aria-label="Collapse sidebar">
+                <ChevronLeft className="size-4" />
+              </Button>
+            </div>
           </div>
 
           <div className="mb-4 rounded-lg border border-border bg-background/50 p-3">
@@ -284,6 +325,9 @@ export function Dashboard({
             Reset filters
           </Button>
         </aside>
+        )}
+
+        {settingsOpen && <PreferencesPanel onClose={() => setSettingsOpen(false)} display={display} setDisplay={setDisplay} realtime={realtime} setRealtime={setRealtime} />}
 
         <section className="flex-1 p-4 sm:p-8 lg:p-10 relative">
           <div className="absolute inset-0 pointer-events-none mix-blend-overlay"></div>
@@ -332,9 +376,11 @@ export function Dashboard({
             </Card>
           ) : null}
 
-          <KpiGrid stats={stats} loading={statsLoading} />
+          <KpiGrid stats={stats} loading={statsLoading} visible={display.showKpis} />
 
-          <div className="mt-4 grid gap-4 xl:grid-cols-12">
+          <div className={cn("mt-4 grid gap-4", layout.chartGridColumns === "1" ? "grid-cols-1" : "xl:grid-cols-12")}>
+            {display.showCharts && (
+              <>
             <ChartCard className="xl:col-span-7" title="Intensity by Sector" description="Average intensity, sorted by record volume">
               <ResponsiveBar data={data.intensity.data || []} dataKey="avgIntensity" />
             </ChartCard>
@@ -408,8 +454,11 @@ export function Dashboard({
             <ChartCard className="xl:col-span-4" title="Source Analytics" description="Source records and average relevance">
               <SourceAnalytics rows={data.sources.data || []} />
             </ChartCard>
+              </>
+            )}
           </div>
 
+          {display.showTable && (
           <InsightsTable
             loading={data.insights.isLoading && !insights}
             rows={insights?.data || []}
@@ -418,13 +467,14 @@ export function Dashboard({
             pageSize={store.pageSize}
             onPageChange={store.setPage}
           />
+          )}
         </section>
       </div>
     </main>
   )
 }
 
-function KpiGrid({ stats, loading }: { stats?: StatsResponse; loading: boolean }) {
+function KpiGrid({ stats, loading, visible = true }: { stats?: StatsResponse; loading: boolean; visible?: boolean }) {
   const items = [
     { label: "Total Records", value: stats?.totalRecords, icon: Database },
     { label: "Avg Intensity", value: stats?.avgIntensity, icon: Activity },
@@ -436,35 +486,37 @@ function KpiGrid({ stats, loading }: { stats?: StatsResponse; loading: boolean }
     { label: "Sources", value: stats?.totalSources, icon: Database },
   ]
 
+  if (!visible) return null
+
   return (
     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-      {items.map((item, index) => {
-        const Icon = item.icon
-        return (
-          <motion.div
-            key={item.label}
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.03 }}
-          >
-            <Card>
-              <CardContent className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-muted-foreground">{item.label}</p>
-                  <p className="mt-2 text-2xl font-semibold">
-                    {loading ? "..." : item.value ?? "0"}
-                  </p>
-                </div>
-                <div className="rounded-lg bg-primary/10 p-2 text-primary">
-                  <Icon className="size-5" />
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-        )
-      })}
-    </div>
-  )
+        {items.map((item, index) => {
+          const Icon = item.icon
+          return (
+            <motion.div
+              key={item.label}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.03 }}
+            >
+              <Card>
+                <CardContent className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs text-muted-foreground">{item.label}</p>
+                    <p className="mt-2 text-2xl font-semibold">
+                      {loading ? "..." : item.value ?? "0"}
+                    </p>
+                  </div>
+                  <div className="rounded-lg bg-primary/10 p-2 text-primary">
+                    <Icon className="size-5" />
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          )
+        })}
+      </div>
+    )
 }
 
 function ChartCard({
@@ -681,6 +733,128 @@ function EmptyState() {
   return (
     <div className="flex min-h-52 items-center justify-center rounded-lg border border-dashed border-border bg-muted/20 p-6 text-center text-sm text-muted-foreground">
       No data matches the current filters.
+    </div>
+  )
+}
+
+function PreferencesPanel({
+  onClose,
+  display,
+  setDisplay,
+  realtime,
+  setRealtime,
+}: {
+  onClose: () => void
+  display: {
+    pageSize: number
+    compactMode: boolean
+    showKpis: boolean
+    showCharts: boolean
+    showTable: boolean
+  }
+  setDisplay: (patch: Partial<{
+    pageSize: number
+    compactMode: boolean
+    showKpis: boolean
+    showCharts: boolean
+    showTable: boolean
+  }>) => void
+  realtime: { enabled: boolean; interval: number; showNotifications: boolean }
+  setRealtime: (patch: Partial<{ enabled: boolean; interval: number; showNotifications: boolean }>) => void
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-start justify-end bg-black/20 backdrop-blur-sm" onClick={onClose}>
+      <aside
+        className="h-full w-80 overflow-y-auto border-l border-border bg-sidebar/95 p-6 shadow-2xl backdrop-blur-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="mb-6 flex items-center justify-between">
+          <h2 className="text-lg font-semibold">Preferences</h2>
+          <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close settings">
+            <ChevronRight className="size-4" />
+          </Button>
+        </div>
+
+        <div className="space-y-6">
+          <section>
+            <h3 className="mb-3 text-sm font-medium text-muted-foreground">Display</h3>
+            <label className="flex items-center justify-between gap-2 text-sm">
+              Show KPI cards
+              <input
+                type="checkbox"
+                className="size-4 accent-primary"
+                checked={display.showKpis}
+                onChange={(e) => setDisplay({ showKpis: e.target.checked })}
+              />
+            </label>
+            <label className="mt-2 flex items-center justify-between gap-2 text-sm">
+              Show charts
+              <input
+                type="checkbox"
+                className="size-4 accent-primary"
+                checked={display.showCharts}
+                onChange={(e) => setDisplay({ showCharts: e.target.checked })}
+              />
+            </label>
+            <label className="mt-2 flex items-center justify-between gap-2 text-sm">
+              Show data table
+              <input
+                type="checkbox"
+                className="size-4 accent-primary"
+                checked={display.showTable}
+                onChange={(e) => setDisplay({ showTable: e.target.checked })}
+              />
+            </label>
+            <label className="mt-2 flex items-center justify-between gap-2 text-sm">
+              Compact mode
+              <input
+                type="checkbox"
+                className="size-4 accent-primary"
+                checked={display.compactMode}
+                onChange={(e) => setDisplay({ compactMode: e.target.checked })}
+              />
+            </label>
+          </section>
+
+          <section>
+            <h3 className="mb-3 text-sm font-medium text-muted-foreground">Table</h3>
+            <label className="flex items-center justify-between gap-2 text-sm">
+              Rows per page
+              <select
+                className="h-8 rounded-md border border-border bg-background px-2 text-sm"
+                value={display.pageSize}
+                onChange={(e) => setDisplay({ pageSize: Number(e.target.value) })}
+              >
+                {[10, 25, 50, 100].map((n) => (
+                  <option key={n} value={n}>{n}</option>
+                ))}
+              </select>
+            </label>
+          </section>
+
+          <section>
+            <h3 className="mb-3 text-sm font-medium text-muted-foreground">Realtime</h3>
+            <label className="flex items-center justify-between gap-2 text-sm">
+              Enable live updates
+              <input
+                type="checkbox"
+                className="size-4 accent-primary"
+                checked={realtime.enabled}
+                onChange={(e) => setRealtime({ enabled: e.target.checked })}
+              />
+            </label>
+            <label className="mt-2 flex items-center justify-between gap-2 text-sm">
+              Show notifications
+              <input
+                type="checkbox"
+                className="size-4 accent-primary"
+                checked={realtime.showNotifications}
+                onChange={(e) => setRealtime({ showNotifications: e.target.checked })}
+              />
+            </label>
+          </section>
+        </div>
+      </aside>
     </div>
   )
 }

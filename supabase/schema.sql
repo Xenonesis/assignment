@@ -32,3 +32,14 @@ CREATE INDEX IF NOT EXISTS idx_source ON insights(source);
 CREATE INDEX IF NOT EXISTS idx_city ON insights(city);
 CREATE INDEX IF NOT EXISTS idx_swot ON insights(swot);
 CREATE INDEX IF NOT EXISTS idx_published ON insights(published);
+
+-- Enable realtime on insights
+ALTER PUBLICATION supabase_realtime ADD TABLE insights;
+
+CREATE TABLE IF NOT EXISTS user_preferences (
+  user_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  preferences JSONB NOT NULL DEFAULT '{}',
+  schema_version INT NOT NULL DEFAULT 1,
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
